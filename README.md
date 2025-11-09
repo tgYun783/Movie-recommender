@@ -188,25 +188,25 @@ docker-compose up --build
 
 ```bash
 # 서비스 시작
-docker-compose up
+docker compose up
 
 # 백그라운드 실행
-docker-compose up -d
+docker compose up -d
 
 # 서비스 중지
-docker-compose down
+docker compose down
 
 # 특정 서비스 로그 확인
-docker-compose logs -f api
+docker compose logs -f api
 
 # 특정 서비스 재시작
-docker-compose restart api
+docker compose restart api
 
 # 강제 재빌드
-docker-compose up --build
+docker compose up --build
 
 # 볼륨까지 완전히 삭제 (데이터베이스 초기화)
-docker-compose down -v
+docker compose down -v
 ```
 
 ## 📁 프로젝트 구조
