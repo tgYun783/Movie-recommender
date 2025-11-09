@@ -32,12 +32,17 @@
    - CASCADE 설정으로 관계 데이터 자동 관리
    - HNSW 인덱스로 벡터 검색 최적화 준비
 
+5. **TF-IDF 벡터 생성 (신규!)**
+   - 영화 줄거리와 키워드 기반 TF-IDF 벡터화
+   - 한국어 형태소 분석 (konlpy Okt) 적용
+   - scikit-learn TfidfVectorizer로 512차원 벡터 생성
+   - pgvector에 저장하여 유사도 검색 준비
+   - 배치 생성 및 자동 생성 두 가지 방식 지원
+
 ### 🚧 구현 예정
 
 - **취향 분석**: 사용자가 선택한 영화 목록을 기반으로 TF-IDF 벡터 생성
 - **영화 추천**: 생성된 취향 벡터와 pgvector에 저장된 영화 벡터 간의 코사인 유사도 계산하여 맞춤형 영화 추천
-- **TF-IDF 벡터 생성**: 영화 줄거리와 키워드 기반 벡터화
-- **추천 알고리즘**: pgvector의 코사인 유사도 기반 추천 시스템
 
 ## 🛠️ 기술 스택 (Tech Stack)
 
@@ -52,6 +57,9 @@
 - httpx (Async HTTP client)
 - psycopg2-binary (PostgreSQL driver)
 - pgvector (Vector similarity search)
+- scikit-learn (TF-IDF vectorization)
+- konlpy (Korean morphological analysis)
+- numpy (Numerical operations)
 
 **Database**
 - PostgreSQL 15
@@ -214,15 +222,18 @@ docker compose down -v
 ```
 movie-recommender/
 ├── backend/
-│   ├── main.py                 # FastAPI 메인 애플리케이션
-│   ├── database.py             # DB 연결 설정
-│   ├── models.py               # SQLAlchemy ORM 모델
-│   ├── tmdb_service.py         # TMDb API 서비스
-│   ├── movie_service.py        # 영화 CRUD 서비스
-│   ├── init_db.sql             # DB 스키마 정의
-│   ├── init_database.py        # DB 초기화 스크립트
-│   ├── startup.sh              # 컨테이너 시작 스크립트
-│   ├── requirements.txt        # Python 의존성
+│   ├── main.py                      # FastAPI 메인 애플리케이션
+│   ├── database.py                  # DB 연결 설정
+│   ├── models.py                    # SQLAlchemy ORM 모델
+│   ├── tmdb_service.py              # TMDb API 서비스
+│   ├── movie_service.py             # 영화 CRUD 서비스
+│   ├── tfidf_service.py             # TF-IDF 벡터 생성 서비스
+│   ├── collect_movies.py            # 영화 대량 수집 스크립트 (신규!)
+│   ├── generate_tfidf_vectors.py    # TF-IDF 배치 생성 스크립트
+│   ├── init_db.sql                  # DB 스키마 정의
+│   ├── init_database.py             # DB 초기화 스크립트
+│   ├── startup.sh                   # 컨테이너 시작 스크립트
+│   ├── requirements.txt             # Python 의존성
 │   └── Dockerfile
 ├── frontend/
 │   ├── src/
@@ -242,11 +253,74 @@ movie-recommender/
 
 ## 🎯 사용 방법
 
+### 기본 사용법
+
 1. **영화 검색**: 검색창에 영화 제목 입력 (예: "인셉션", "기생충")
 2. **영화 선택**: 드롭다운에서 원하는 영화 클릭
 3. **영화 저장**: "이 영화 저장하기" 버튼 클릭
+   - 영화 저장 시 TF-IDF 벡터가 자동으로 생성됩니다 (vectorizer가 있는 경우)
 4. **저장 확인**: 하단에 저장된 영화 카드 표시
 5. **영화 삭제**: 영화 카드 우상단의 X 버튼 클릭
+
+### 영화 데이터 대량 수집 (중요!)
+
+추천 시스템을 위해서는 많은 영화 데이터가 필요합니다. 영화 수집 스크립트를 사용하세요.
+
+```bash
+# 컨테이너에 접속
+docker exec -it movie_api bash
+
+# 500개 영화 수집 (기본값)
+python collect_movies.py --limit 500
+
+# 특정 카테고리에서만 수집
+python collect_movies.py --categories popular top_rated --limit 300
+
+# 장르별 영화도 포함
+python collect_movies.py --limit 1000 --include-genres
+```
+
+**수집 카테고리:**
+- `popular`: 인기 영화
+- `top_rated`: 평점 높은 영화
+- `now_playing`: 현재 상영 중
+- `upcoming`: 개봉 예정
+
+**주의:** TMDb API는 무료 플랜에서 초당 요청 제한이 있습니다. 스크립트는 자동으로 지연을 추가하지만, 대량 수집 시 시간이 걸릴 수 있습니다.
+
+### TF-IDF 벡터 생성
+
+영화 수집 후 벡터를 생성해야 추천이 가능합니다.
+
+#### 방법 1: 배치 생성 (필수!)
+모든 영화에 대해 한 번에 TF-IDF 벡터를 생성합니다. 전체 corpus를 기반으로 하므로 더 정확합니다.
+
+```bash
+# 컨테이너 접속
+docker exec -it movie_api bash
+
+# 벡터 생성 스크립트 실행
+python generate_tfidf_vectors.py
+```
+
+#### 방법 2: 자동 생성
+- 배치 생성을 먼저 실행한 후, 새로운 영화를 저장하면 자동으로 벡터가 생성됩니다
+- 저장된 vectorizer를 사용하여 일관성 있는 벡터를 생성합니다
+
+### 권장 워크플로우
+
+```bash
+# 1. 컨테이너 접속
+docker exec -it movie_api bash
+
+# 2. 영화 500개 수집 (약 5-10분 소요)
+python collect_movies.py --limit 500
+
+# 3. TF-IDF 벡터 생성 (약 2-5분 소요)
+python generate_tfidf_vectors.py
+
+# 4. 이제 추천 시스템 사용 준비 완료!
+```
 
 ## 🔧 API 엔드포인트
 

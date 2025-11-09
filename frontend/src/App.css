@@ -1,5 +1,5 @@
 .container {
-  max-width: 600px;
+  max-width: 1200px;
   margin: 2rem auto;
   padding: 1rem;
   text-align: center;
@@ -132,7 +132,41 @@ p {
   cursor: not-allowed;
 }
 
-/* --- 저장된 영화 목록 --- */
+/* --- 내 영화 목록 --- */
+.my-movies-section {
+  margin-top: 3rem;
+  padding: 2rem;
+  background-color: #222;
+  border-radius: 12px;
+  text-align: left;
+  min-height: 200px;
+}
+
+.my-movies-section h2 {
+  color: #e3f2fd;
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+/* 빈 상태 */
+.empty-state {
+  text-align: center;
+  padding: 3rem;
+  color: #90caf9;
+}
+
+.empty-state p {
+  margin: 0.5rem 0;
+  font-size: 1.1rem;
+}
+
+.empty-state p:first-child {
+  font-size: 1.3rem;
+  font-weight: 500;
+  color: #64b5f6;
+}
+
+/* 저장된 영화 목록 (레거시 - 제거 가능) */
 .saved-movies {
   margin-top: 3rem;
   padding: 2rem;
@@ -246,4 +280,224 @@ p {
   color: white;
   padding: 0.2rem 0.5rem;
   border-radius: 12px;
+}
+
+/* --- 추천 시스템 관련 스타일 --- */
+
+/* 선택된 영화 카드 */
+.movie-card.selected {
+  border: 3px solid #4caf50;
+  box-shadow: 0 0 15px rgba(76, 175, 80, 0.5);
+}
+
+/* 선택 체크 배지 */
+.selected-badge {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  background-color: #4caf50;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* 추천 컨트롤 */
+.recommendation-controls {
+  margin-top: 2rem;
+  padding: 2rem;
+  background-color: #1a1a1a;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.recommendation-controls h3 {
+  color: #4caf50;
+  margin-bottom: 1.5rem;
+  font-size: 1.3rem;
+}
+
+/* 슬라이더 컨테이너 */
+.slider-container {
+  margin: 1.5rem 0;
+}
+
+.slider-container label {
+  display: block;
+  color: #90caf9;
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+  font-weight: 500;
+}
+
+/* 슬라이더 스타일 */
+.recommendation-slider {
+  -webkit-appearance: none;
+  width: 100%;
+  max-width: 400px;
+  height: 8px;
+  border-radius: 5px;
+  background: #444;
+  outline: none;
+  opacity: 0.9;
+  transition: opacity 0.2s;
+}
+
+.recommendation-slider:hover {
+  opacity: 1;
+}
+
+.recommendation-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #4caf50;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+}
+
+.recommendation-slider::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #4caf50;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+}
+
+/* 추천 받기 버튼 */
+.recommend-button {
+  margin-top: 1.5rem;
+  padding: 15px 40px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
+  color: white;
+  border: none;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+}
+
+.recommend-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(76, 175, 80, 0.6);
+}
+
+.recommend-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.recommend-button:disabled {
+  background: #555;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* 추천 결과 섹션 */
+.recommendations-section {
+  margin-top: 3rem;
+  padding: 2rem;
+  background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%);
+  border-radius: 12px;
+  animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.recommendations-section h2 {
+  color: #fff;
+  text-align: center;
+  margin-bottom: 1rem;
+  font-size: 2rem;
+}
+
+.recommendation-subtitle {
+  color: #90caf9;
+  text-align: center;
+  margin-bottom: 2rem;
+  font-size: 1.1rem;
+}
+
+/* 추천 영화 카드 */
+.recommendation-card {
+  position: relative;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  animation: slideIn 0.5s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.recommendation-card:hover {
+  border-color: #ffd700;
+  transform: translateY(-8px);
+  box-shadow: 0 8px 25px rgba(255, 215, 0, 0.3);
+}
+
+/* 추천 순위 배지 */
+.recommendation-rank {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  background: linear-gradient(135deg, #ffd700 0%, #ffb300 100%);
+  color: #000;
+  font-weight: bold;
+  font-size: 1rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 8px;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* 유사도 배지 */
+.similarity-badge {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+  color: white;
+  font-weight: bold;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 12px;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* 영화 줄거리 */
+.movie-overview {
+  font-size: 0.85rem;
+  color: #ccc;
+  margin-top: 0.5rem;
+  line-height: 1.4;
+  text-align: left;
 }

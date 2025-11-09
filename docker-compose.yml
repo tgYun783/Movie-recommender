@@ -23,6 +23,7 @@ services:
     command: bash startup.sh  # startup 스크립트 실행 (DB 초기화 + API 서버 시작)
     volumes:
       - ./backend:/app # 호스트의 ./backend 폴더를 컨테이너 /app에 마운트
+      - tfidf_data:/app/data # TF-IDF vectorizer 저장용 볼륨
     ports:
       - "8000:8000" # API 서버 포트
     depends_on:
@@ -46,3 +47,4 @@ services:
 
 volumes:
   postgres_data: # DB 데이터를 저장할 볼륨 정의
+  tfidf_data: # TF-IDF vectorizer 저장용 볼륨

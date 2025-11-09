@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from models import Movie, Genre, Keyword
 from tmdb_service import get_movie_full_info
 from typing import Optional, Dict, Any
+from tfidf_service import generate_and_save_vector
 
 
 async def save_movie_to_db(movie_id: int, db: Session) -> Optional[Movie]:
@@ -90,6 +91,18 @@ async def save_movie_to_db(movie_id: int, db: Session) -> Optional[Movie]:
         db.refresh(movie)
 
         print(f"✓ Movie '{movie.title}' saved successfully (ID: {movie.id})")
+
+        # 7. TF-IDF 벡터 자동 생성 (실패해도 영화는 저장됨)
+        try:
+            print(f"  Generating TF-IDF vector for movie {movie.id}...")
+            if generate_and_save_vector(movie, db):
+                print(f"  ✓ Vector generated and saved")
+            else:
+                print(f"  ⚠ Vector generation failed, but movie is saved")
+        except Exception as e:
+            print(f"  ⚠ Vector generation error: {e}")
+            # 벡터 생성 실패는 무시하고 계속 진행
+
         return movie
 
     except IntegrityError as e:

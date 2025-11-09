@@ -7,6 +7,9 @@ import os  # 환경 변수를 사용하기 위해 추가
 # 로컬 모듈 import
 from database import get_db
 from movie_service import save_movie_to_db, get_movie_by_id, get_all_movies, delete_movie, movie_to_dict
+from recommendation_service import recommend_movies, get_similar_movies, get_recommendation_stats, ensure_vectors_exist
+from pydantic import BaseModel
+from typing import List
 
 # --- FastAPI 앱 생성 ---
 app = FastAPI()
@@ -180,3 +183,104 @@ def remove_movie(movie_id: int, db: Session = Depends(get_db)):
         "status": "success",
         "message": f"Movie ID {movie_id} deleted successfully"
     }
+
+
+# --- 추천 시스템 엔드포인트 ---
+
+class RecommendationRequest(BaseModel):
+    """추천 요청 모델"""
+    movie_ids: List[int]  # 사용자가 좋아하는 영화 ID 리스트
+    limit: int = 10  # 추천할 영화 개수
+
+
+@app.post("/recommend")
+def get_recommendations(request: RecommendationRequest, db: Session = Depends(get_db)):
+    """
+    사용자가 선택한 영화들을 기반으로 영화 추천
+    벡터가 없는 영화는 자동으로 생성됨
+
+    Args:
+        request: 추천 요청 (영화 ID 리스트, 추천 개수)
+        db: DB 세션
+
+    Returns:
+        추천 영화 리스트 (유사도 점수 포함)
+    """
+    if not request.movie_ids:
+        raise HTTPException(status_code=400, detail="At least one movie ID is required")
+
+    if request.limit < 1 or request.limit > 100:
+        raise HTTPException(status_code=400, detail="Limit must be between 1 and 100")
+
+    # 벡터가 없는 영화들의 벡터 자동 생성
+    vector_result = ensure_vectors_exist(request.movie_ids, db)
+
+    print(f"Vector generation result: {vector_result}")
+
+    # 벡터 생성에 실패한 영화가 있으면 경고
+    if vector_result["failed"] > 0:
+        print(f"Warning: Failed to generate vectors for {vector_result['failed']} movies")
+
+    # 추천 실행
+    recommendations = recommend_movies(request.movie_ids, db, request.limit)
+
+    if not recommendations:
+        raise HTTPException(
+            status_code=404,
+            detail="No recommendations found. Make sure selected movies exist and have valid data."
+        )
+
+    return {
+        "status": "success",
+        "selected_movies": request.movie_ids,
+        "vector_generation": vector_result,
+        "total_recommendations": len(recommendations),
+        "recommendations": recommendations
+    }
+
+
+@app.get("/movies/{movie_id}/similar")
+def get_similar(movie_id: int, limit: int = 10, db: Session = Depends(get_db)):
+    """
+    특정 영화와 유사한 영화 추천
+
+    Args:
+        movie_id: 기준 영화 ID
+        limit: 추천할 영화 개수
+        db: DB 세션
+
+    Returns:
+        유사 영화 리스트
+    """
+    if limit < 1 or limit > 100:
+        raise HTTPException(status_code=400, detail="Limit must be between 1 and 100")
+
+    similar_movies = get_similar_movies(movie_id, db, limit)
+
+    if not similar_movies:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No similar movies found for movie ID {movie_id}"
+        )
+
+    return {
+        "status": "success",
+        "base_movie_id": movie_id,
+        "total_similar": len(similar_movies),
+        "similar_movies": similar_movies
+    }
+
+
+@app.get("/recommendation/stats")
+def get_stats(db: Session = Depends(get_db)):
+    """
+    추천 시스템 통계 정보
+
+    Args:
+        db: DB 세션
+
+    Returns:
+        통계 정보
+    """
+    stats = get_recommendation_stats(db)
+    return stats

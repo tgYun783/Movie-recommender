@@ -15,11 +15,16 @@ function App() {
   // 3. 사용자가 최종 선택한 영화
   const [selectedMovie, setSelectedMovie] = useState(null);
 
-  // 4. 저장된 영화 목록
-  const [savedMovies, setSavedMovies] = useState([]);
+  // 4. 사용자가 추가한 영화 목록 (추천 대상)
+  const [myMovies, setMyMovies] = useState([]);
 
-  // 5. 저장 중 상태
-  const [isSaving, setIsSaving] = useState(false);
+  // 5. 추가 중 상태
+  const [isAdding, setIsAdding] = useState(false);
+
+  // 6. 추천 시스템 관련 상태
+  const [recommendations, setRecommendations] = useState([]);
+  const [recommendationLimit, setRecommendationLimit] = useState(20);
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
 
   // useEffect: searchTerm이 변경될 때마다 실행됩니다.
   useEffect(() => {
@@ -49,21 +54,7 @@ function App() {
     return () => clearTimeout(delayDebounceFn);
   }, [searchTerm]); // searchTerm이 바뀔 때만 이 hook을 다시 실행
 
-  // 컴포넌트 마운트 시 저장된 영화 목록 불러오기
-  useEffect(() => {
-    fetchSavedMovies();
-  }, []);
-
-  // 저장된 영화 목록 가져오기
-  const fetchSavedMovies = async () => {
-    try {
-      const response = await fetch(`${API_URL}/movies`);
-      const data = await response.json();
-      setSavedMovies(data.movies || []);
-    } catch (error) {
-      console.error("Error fetching saved movies:", error);
-    }
-  };
+  // 초기 로딩 제거 (사용자가 직접 추가하는 방식으로 변경)
 
   // 검색 결과에서 영화를 클릭했을 때
   const handleMovieSelect = (movie) => {
@@ -75,12 +66,19 @@ function App() {
     setSearchResults([]);
   };
 
-  // 영화를 DB에 저장
-  const handleSaveMovie = async () => {
+  // 영화를 내 목록에 추가 (DB에 자동 저장)
+  const handleAddMovie = async () => {
     if (!selectedMovie) return;
 
-    setIsSaving(true);
+    // 이미 추가된 영화인지 확인
+    if (myMovies.some(m => m.id === selectedMovie.id)) {
+      alert('이미 추가된 영화입니다.');
+      return;
+    }
+
+    setIsAdding(true);
     try {
+      // DB에 저장 (없으면 자동 등록)
       const response = await fetch(`${API_URL}/movies/${selectedMovie.id}`, {
         method: 'POST',
       });
@@ -88,54 +86,81 @@ function App() {
       const data = await response.json();
 
       if (data.status === 'success') {
-        alert(`✓ "${data.movie.title}" 저장 완료!`);
-        // 저장된 영화 목록 새로고침
-        fetchSavedMovies();
+        // 내 목록에 추가
+        setMyMovies([...myMovies, data.movie]);
         // 검색창 초기화
         setSelectedMovie(null);
         setSearchTerm('');
       } else {
-        alert('영화 저장에 실패했습니다.');
+        alert('영화 추가에 실패했습니다.');
       }
     } catch (error) {
-      console.error("Error saving movie:", error);
-      alert('영화 저장 중 오류가 발생했습니다.');
+      console.error("Error adding movie:", error);
+      alert('영화 추가 중 오류가 발생했습니다.');
     } finally {
-      setIsSaving(false);
+      setIsAdding(false);
     }
   };
 
-  // 영화를 DB에서 삭제
-  const handleDeleteMovie = async (movieId, movieTitle) => {
-    if (!confirm(`"${movieTitle}"을(를) 삭제하시겠습니까?`)) {
+  // 내 목록에서 영화 제거
+  const handleRemoveMovie = (movieId) => {
+    setMyMovies(myMovies.filter(m => m.id !== movieId));
+  };
+
+  // 포스터 이미지 URL을 완성해주는 헬퍼 함수
+  const getPosterUrl = (posterPath) => {
+    return posterPath
+      ? `https://image.tmdb.org/t/p/w200${posterPath}`
+      : 'https://placehold.co/200x300?text=No+Image'; // 포스터 없을 시
+  };
+
+  // 영화 추천 받기 (내 목록의 모든 영화 기반)
+  const handleGetRecommendations = async () => {
+    if (myMovies.length === 0) {
+      alert('추천을 받으려면 최소 1개 이상의 영화를 추가해주세요.');
       return;
     }
 
+    setIsLoadingRecommendations(true);
     try {
-      const response = await fetch(`${API_URL}/movies/${movieId}`, {
-        method: 'DELETE',
+      const movieIds = myMovies.map(m => m.id);
+
+      const response = await fetch(`${API_URL}/recommend`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          movie_ids: movieIds,
+          limit: recommendationLimit,
+        }),
       });
 
       const data = await response.json();
 
       if (data.status === 'success') {
-        alert(`✓ "${movieTitle}" 삭제 완료!`);
-        // 저장된 영화 목록 새로고침
-        fetchSavedMovies();
+        setRecommendations(data.recommendations);
+
+        // 벡터 생성 결과 표시
+        if (data.vector_generation?.newly_created > 0) {
+          alert(`✓ ${data.vector_generation.newly_created}개 영화의 분석 데이터를 생성했습니다.`);
+        }
+
+        // 스크롤을 추천 결과로 이동
+        setTimeout(() => {
+          document.getElementById('recommendations-section')?.scrollIntoView({
+            behavior: 'smooth'
+          });
+        }, 100);
       } else {
-        alert('영화 삭제에 실패했습니다.');
+        alert('추천을 받는데 실패했습니다.');
       }
     } catch (error) {
-      console.error("Error deleting movie:", error);
-      alert('영화 삭제 중 오류가 발생했습니다.');
+      console.error("Error getting recommendations:", error);
+      alert('추천 요청 중 오류가 발생했습니다.');
+    } finally {
+      setIsLoadingRecommendations(false);
     }
-  };
-
-  // 포스터 이미지 URL을 완성해주는 헬퍼 함수
-  const getPosterUrl = (posterPath) => {
-    return posterPath 
-      ? `https://image.tmdb.org/t/p/w200${posterPath}`
-      : 'https://placehold.co/200x300?text=No+Image'; // 포스터 없을 시
   };
 
   return (
@@ -184,34 +209,96 @@ function App() {
             src={getPosterUrl(selectedMovie.poster_path)}
             alt={selectedMovie.title}
           />
-          <p>(영화 ID: {selectedMovie.id})</p>
+          <p>({selectedMovie.release_date ? selectedMovie.release_date.split('-')[0] : 'N/A'})</p>
           <button
-            onClick={handleSaveMovie}
-            disabled={isSaving}
+            onClick={handleAddMovie}
+            disabled={isAdding}
             className="save-button"
           >
-            {isSaving ? '저장 중...' : '이 영화 저장하기'}
+            {isAdding ? '추가 중...' : '내 목록에 추가하기'}
           </button>
         </div>
       )}
 
-      {/* 저장된 영화 목록 */}
-      {savedMovies.length > 0 && (
-        <div className="saved-movies">
-          <h2>내가 저장한 영화 ({savedMovies.length}개)</h2>
+      {/* 내가 선택한 영화 목록 */}
+      <div className="my-movies-section">
+        <h2>내가 좋아하는 영화 {myMovies.length > 0 && `(${myMovies.length}개)`}</h2>
+
+        {myMovies.length === 0 ? (
+          <div className="empty-state">
+            <p>아직 추가된 영화가 없습니다.</p>
+            <p>위에서 영화를 검색하여 추가해보세요!</p>
+          </div>
+        ) : (
+          <>
+            <div className="movie-grid">
+              {myMovies.map(movie => (
+                <div key={movie.id} className="movie-card">
+                  <button
+                    className="delete-button"
+                    onClick={() => handleRemoveMovie(movie.id)}
+                    aria-label="영화 제거"
+                  >
+                    ×
+                  </button>
+                  <img
+                    src={getPosterUrl(movie.poster_path)}
+                    alt={movie.title}
+                  />
+                  <h3>{movie.title}</h3>
+                  <p className="movie-year">
+                    {movie.release_date ? movie.release_date.split('-')[0] : 'N/A'}
+                  </p>
+                  <p className="movie-rating">⭐ {movie.vote_average?.toFixed(1)}</p>
+                  <div className="movie-genres">
+                    {movie.genres?.slice(0, 2).map(genre => (
+                      <span key={genre.id} className="genre-tag">{genre.name}</span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* 추천 받기 컨트롤 */}
+            <div className="recommendation-controls">
+              <h3>이 영화들을 기반으로 추천받기</h3>
+              <div className="slider-container">
+                <label>추천 받을 영화 개수: {recommendationLimit}개</label>
+                <input
+                  type="range"
+                  min="10"
+                  max="50"
+                  value={recommendationLimit}
+                  onChange={(e) => setRecommendationLimit(parseInt(e.target.value))}
+                  className="recommendation-slider"
+                />
+              </div>
+              <button
+                onClick={handleGetRecommendations}
+                disabled={isLoadingRecommendations}
+                className="recommend-button"
+              >
+                {isLoadingRecommendations ? '분석 중...' : '🎯 영화 추천 받기'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* 추천 결과 */}
+      {recommendations.length > 0 && (
+        <div id="recommendations-section" className="recommendations-section">
+          <h2>🎬 추천 영화 ({recommendations.length}개)</h2>
+          <p className="recommendation-subtitle">
+            선택하신 영화를 분석하여 취향에 맞는 영화를 찾았습니다!
+          </p>
           <div className="movie-grid">
-            {savedMovies.map(movie => (
-              <div key={movie.id} className="movie-card">
-                <button
-                  className="delete-button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteMovie(movie.id, movie.title);
-                  }}
-                  aria-label="영화 삭제"
-                >
-                  ×
-                </button>
+            {recommendations.map((movie, index) => (
+              <div key={movie.id} className="movie-card recommendation-card">
+                <div className="recommendation-rank">#{index + 1}</div>
+                <div className="similarity-badge">
+                  {movie.similarity_percent}% 유사
+                </div>
                 <img
                   src={getPosterUrl(movie.poster_path)}
                   alt={movie.title}
@@ -226,6 +313,13 @@ function App() {
                     <span key={genre.id} className="genre-tag">{genre.name}</span>
                   ))}
                 </div>
+                {movie.overview && (
+                  <p className="movie-overview">
+                    {movie.overview.length > 100
+                      ? movie.overview.substring(0, 100) + '...'
+                      : movie.overview}
+                  </p>
+                )}
               </div>
             ))}
           </div>
